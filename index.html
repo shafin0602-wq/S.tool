@@ -28,6 +28,7 @@
       overflow: hidden;
       display: flex;
       flex-direction: column;
+      transition: background 0.3s ease;
     }
 
     /* Matrix Background */
@@ -445,9 +446,20 @@ ui.startBtn.addEventListener('click', () => {
   packetLimit = parseInt(ui.amount.value) || 0; 
 
   if (PROTECTED_NUMS.includes(phone)) {
-    log('ACCESS DENIED', 'err');
-    vibrate(200);
-    alert("Protected Number.");
+    // DRAMATIC ALERT EFFECT
+    log('🛑 SECURITY ALERT: ADMIN DETECTED', 'err');
+    log('🚫 ACCESS DENIED BY SHAFIN SHIELD', 'err');
+    
+    // Flash background Red
+    document.body.style.background = "#400";
+    setTimeout(() => document.body.style.background = "var(--bg)", 800);
+
+    // Fake Trace Logs
+    setTimeout(() => log('📡 TRACKING USER LOCATION...', 'node'), 600);
+    setTimeout(() => log('⚠️ REPORT SENT TO SERVER IP: 103.20.11.X', 'err'), 1500);
+
+    vibrate([200, 100, 200, 100, 500]);
+    alert("SYSTEM WARNING: YOU CANNOT ATTACK THE ADMIN!\n\nYour attempt has been logged.");
     return;
   }
 
